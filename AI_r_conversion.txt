@@ -1,0 +1,72 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Define helper functions
+def fix_name(x):
+    # Full list of all elements in GEOROC
+    dict = ['SiO2', 'TiO2', 'Al2O3', ...]  # Rest of the list
+    clean_name = x.replace('(WT%)', '').replace('(PPM)', '')
+    p = [i for i, v in enumerate(dict) if v == clean_name.upper()][0]
+    return dict[p]
+
+def CleanData(data, elements_to_clean):
+    data.rename(columns=lambda x: mapply(fix_name, x), inplace=True)
+    data.dropna(subset=elements_to_clean, axis=0, inplace=True)
+
+def AddNorms(data, elements_to_norm):
+    for col in elements_to_norm:
+        data[f'norm_{col}'] = np.where(data[col] > 0, np.log(data[col]) - mean(np.log(data[data[col] > 0])), 0)
+
+# Define functions to create custom color mapping
+def assign_colour_XY_map(colour_map):
+    def colour(x, y):
+        theta = np.arctan2(y, x)
+        magnitude = np.sqrt(x**2 + y**2)
+        seg = theta // (np.pi/2)
+        arc = theta % (np.pi/2)
+        if arc < (np.pi/8):
+            prev_seg = (seg+3) % 4
+            return colour_map[prev_seg]
+        elif arc < (np.pi/2 - np.pi/8):
+            return colour_map[seg]
+        else:
+            next_seg = (seg+1) % 4
+            return colour_mix(colour_map[seg], colour_map[next_seg])
+    return lambda x, y: colour(x, y)
+
+def assign_colour(x, y):
+    theta = np.arctan2(y, x)
+    magnitude = np.sqrt(x**2 + y**2)
+    seg = theta // (np.pi/2)
+    arc = theta % (np.pi/2)
+    if arc < (np.pi/8):
+        prev_seg = (seg+3) % 4
+        return colour_mix(0.5 + 0.5*arc/(np.pi/8), colour_map[prev_seg], colour_map[seg])
+    elif arc < (np.pi/2 - np.pi/8):
+        return colour_map[seg]
+    else:
+        next_seg = (seg+1) % 4
+        return colour_mix(0.5*((np.pi/8)-(np.pi/2-arc))/(np.pi/8), colour_map[seg], colour_map[next_seg])
+    if magnitude > 1:
+        return colour_map[magnitude]
+    else:
+        return colour_mix(magnitude, sRGB(1, 1, 1))
+
+# Load data
+full_data = pd.read_csv('nick/R_arcs - DO NOT EDIT.csv')
+
+# Clean and normalize data
+sorted_data = full_data.dropna().applymap(lambda x: fix_name(x))
+AddNorms(sorted_data)
+
+# Create custom color mapping for colors (Below order is: Red, yellow, green, Blue)
+colour_map = [sRGB(1, 0, 0), sRGB(1, 0.8274, 0), sRGB(0, 1, 0), sRGB(0.2823, 0.05882, 1)]
+assign_colour_function = assign_colour_XY_map(colour_map)
+
+# Plot examples
+plt.scatter(sorted_data['slope_Sr'], sorted_data['slope_Y'], c=mapply(assign_colour_function, sorted_data['slope_Sr']/30, sorted_data['slope_Y']/2))
+plt.show()
+
+# Bar chart showing absolute count of sample quartiles by major location
+sorted_data.groupby('major_loc').count().plot.bar(x='major_loc', y='cat')
+plt.show()
