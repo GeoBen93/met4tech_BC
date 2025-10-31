@@ -17,11 +17,45 @@ import warnings
 warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
 
 
-def plot_regression_boxplots(results_dict: Dict[Tuple[str, str], List[float]], 
+def _prepare_boxplot_data(data: Union[Dict[Tuple[str, str], List[float]], Any],
+                          parameter: str = 'coefficients',
+                          p_value_threshold: Optional[float] = None,
+                          n_samples_threshold: Optional[int] = None) -> Dict[Tuple[str, str], List[float]]:
+    """
+    Prepare data for boxplot visualization.
+    
+    Handles both dict format and RegressionGroupCollection objects.
+    
+    Args:
+        data: Either a dict mapping (ind_var, dep_var) to lists, or a RegressionGroupCollection
+        parameter: Parameter to extract (for RegressionGroupCollection)
+        p_value_threshold: Optional p-value threshold (for RegressionGroupCollection)
+        n_samples_threshold: Optional sample size threshold (for RegressionGroupCollection)
+        
+    Returns:
+        Dictionary mapping (independent_var, dependent_var) tuples to lists of values
+    """
+    # Check if it's a RegressionGroupCollection
+    if hasattr(data, 'extract_for_boxplots'):
+        # It's a RegressionGroupCollection
+        return data.extract_for_boxplots(
+            parameter=parameter,
+            p_threshold=p_value_threshold,
+            min_samples=n_samples_threshold
+        )
+    elif isinstance(data, dict):
+        # It's already in the correct format
+        return data
+    else:
+        raise TypeError(f"Unsupported data type: {type(data)}. Expected dict or RegressionGroupCollection.")
+
+
+def plot_regression_boxplots(results_dict: Union[Dict[Tuple[str, str], List[float]], Any], 
                            independent_vars: List[str], group_feature: str,
                            p_value_threshold: float = 0.95, n_samples_threshold: int = 5,
                            min_length: int = 5, figsize: Tuple[int, int] = (15, 12),
-                           save_path: Optional[str] = None, dpi: int = 300) -> None:
+                           save_path: Optional[str] = None, dpi: int = 300,
+                           parameter: str = 'coefficients') -> None:
     """
     Create boxplots for regression slopes grouped by independent variables.
     
@@ -29,7 +63,7 @@ def plot_regression_boxplots(results_dict: Dict[Tuple[str, str], List[float]],
     for different element pairs, filtered by significance and sample size.
     
     Args:
-        results_dict: Dictionary containing regression results
+        results_dict: Dictionary containing regression results, or RegressionGroupCollection
         independent_vars: List of independent variable names
         group_feature: Name of the grouping feature
         p_value_threshold: Minimum p-value threshold for significance
@@ -38,7 +72,16 @@ def plot_regression_boxplots(results_dict: Dict[Tuple[str, str], List[float]],
         figsize: Figure size tuple
         save_path: Optional path to save the figure
         dpi: DPI for saved figure
+        parameter: Parameter to extract for boxplots (used when results_dict is RegressionGroupCollection)
     """
+    # Prepare data - handles both dict and RegressionGroupCollection formats
+    boxplot_data = _prepare_boxplot_data(
+        results_dict,
+        parameter=parameter,
+        p_value_threshold=p_value_threshold if p_value_threshold < 1.0 else None,
+        n_samples_threshold=n_samples_threshold
+    )
+    
     fig = plt.figure(figsize=figsize)
     
     # Create title
@@ -50,7 +93,7 @@ def plot_regression_boxplots(results_dict: Dict[Tuple[str, str], List[float]],
     
     for independent_var in independent_vars:
         ax = fig.add_subplot(len(independent_vars), 1, axis_counter)
-        _plot_single_boxplot(ax, results_dict, independent_var, min_length)
+        _plot_single_boxplot(ax, boxplot_data, independent_var, min_length)
         axis_counter += 1
     
     fig.subplots_adjust(hspace=0.4)

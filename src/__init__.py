@@ -10,10 +10,12 @@ Modules:
 - data_cleaning: Functions for cleaning and organizing geochemical data
 - data_transformations: Functions for compositional data transformations
 - regression_analysis: Statistical regression analysis functions
+- regression_group: RegressionGroup and RegressionGroupCollection classes for managing regression results
 - plotting: Visualization functions for geochemical data and results
 """
 
 from .sample import GeochemicalSample
+from .regression_group import RegressionGroup, RegressionGroupCollection
 from .data_cleaning import (
     clean_data, ci_norm_ree, convert_ppm2wtpc, add_geochemical_classifications,
     add_volcano_names, validate_sample_completeness, remove_outliers_iqr
@@ -44,6 +46,9 @@ __email__ = "ben.clarke@example.com"
 __all__ = [
     # Sample class
     "GeochemicalSample",
+    
+    # Regression group classes
+    "RegressionGroup", "RegressionGroupCollection",
     
     # Data cleaning functions
     "clean_data", "ci_norm_ree", "convert_ppm2wtpc", "add_geochemical_classifications",

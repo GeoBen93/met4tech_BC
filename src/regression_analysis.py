@@ -7,7 +7,10 @@ It includes parallel processing capabilities for large datasets and comprehensiv
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Optional, Union, Tuple, Any
+from typing import Dict, List, Optional, Union, Tuple, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .regression_group import RegressionGroupCollection
 from scipy import stats
 import statsmodels.api as sm
 from joblib import Parallel, delayed
@@ -174,7 +177,8 @@ def perform_regression_for_group(group_name: str, group_data: pd.DataFrame,
 
 
 def regress_parallel(df: pd.DataFrame, group_column: str, independent_vars: List[str], 
-                    dependent_vars: Optional[List[str]] = None, n_jobs: int = -1) -> Dict[str, Dict]:
+                    dependent_vars: Optional[List[str]] = None, n_jobs: int = -1,
+                    return_groups: bool = False) -> Union[Dict[str, Dict], 'RegressionGroupCollection']:
     """
     Perform parallel regressions across groups.
     
@@ -184,10 +188,14 @@ def regress_parallel(df: pd.DataFrame, group_column: str, independent_vars: List
         independent_vars: List of independent variable names
         dependent_vars: List of dependent variable names (if None, uses all columns except independent vars)
         n_jobs: Number of parallel jobs (-1 for all cores)
+        return_groups: If True, return RegressionGroupCollection instead of dict (default: False)
         
     Returns:
-        Dictionary containing regression results for each group
+        Dictionary containing regression results for each group, or RegressionGroupCollection if return_groups=True
     """
+    # Import here to avoid circular imports
+    from .regression_group import RegressionGroupCollection
+    
     grouped = df.groupby(group_column)
     
     if dependent_vars is None:
@@ -211,7 +219,10 @@ def regress_parallel(df: pd.DataFrame, group_column: str, independent_vars: List
     # Convert list of tuples to dictionary
     results_dict = {group_name: result for group_name, result in valid_results}
     
-    return results_dict
+    if return_groups:
+        return RegressionGroupCollection(results_dict)
+    else:
+        return results_dict
 
 
 def extract_result(results: Dict[str, Dict], regression_pair: Tuple[str, str], 
